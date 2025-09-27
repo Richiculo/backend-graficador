@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccessModifier {
+  PUBLIC
+  PRIVATE
+  PROTECTED
+  PACKAGE        // si te diera problemas, usa PACKAGE_PRIVATE
+}
+
+enum RelationType {
+  ASSOCIATION
+  AGGREGATION
+  COMPOSITION
+  INHERITANCE
+  IMPLEMENTATION
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  uuid      String   @unique @default(uuid())
+  username  String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  Proyect[]
+}
+
+model Proyect {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId   Int
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  diagrams Diagram[]
+  @@map("project")
+}
+
+model Diagram {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId Int
+  project   Proyect   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  classes   UmlClass[]
+  relations UmlRelation[]
+}
+
+model UmlClass {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  name       String
+  stereotype String?
+  isAbstract Boolean  @default(false)
+  x          Int
+  y          Int
+
+  outgoingRelations UmlRelation[] @relation("UmlRelation_source")
+  incomingRelations UmlRelation[] @relation("UmlRelation_target")
+
+  diagramId Int
+  diagram   Diagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+
+  attributes UmlAttribute[]
+  methods    UmlMethod[]
+}
+
+model UmlAttribute {
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
+  name         String
+  type         String
+  order        Int
+  defaultValue String?
+  isReadOnly   Boolean  @default(false)
+  isStatic     Boolean  @default(false)
+  visibility   AccessModifier
+
+  umlClassId Int
+  umlClass   UmlClass   @relation(fields: [umlClassId], references: [id], onDelete: Cascade)
+
+  @@unique([umlClassId, order])
+}
+
+model UmlMethod {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  name       String
+  order      Int
+  isStatic   Boolean  @default(false)
+  isAbstract Boolean  @default(false)
+  returnType String
+  visibility AccessModifier
+
+  umlClassId Int
+  umlClass   UmlClass  @relation(fields: [umlClassId], references: [id], onDelete: Cascade)
+
+  @@unique([umlClassId, order])
+}
+
+model UmlRelation {
+  id             Int      @id @default(autoincrement())
+  uuid           String   @unique @default(uuid())
+  kind           RelationType
+  sourceMult     String
+  targetMult     String
+  sourceRole     String?
+  targetRole     String?
+  navigableAToB  Boolean  @default(false)
+  navigableBToA  Boolean  @default(false)
+
+  sourceClassId  Int?
+  targetClassId  Int?
+  sourceClass    UmlClass? @relation("UmlRelation_source", fields: [sourceClassId], references: [id], onDelete: SetNull)
+  targetClass    UmlClass? @relation("UmlRelation_target", fields: [targetClassId], references: [id], onDelete: SetNull)
+
+  diagramId Int
+  diagram   Diagram  @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+}
+

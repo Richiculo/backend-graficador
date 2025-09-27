@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: db-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: grafdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: supersecret
+    ports:
+      # si ya tienes Postgres local en 5432, mapea a 5433 en el host
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d grafdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
