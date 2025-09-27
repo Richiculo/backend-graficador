@@ -19,6 +19,7 @@ export class ProjectsController {
   create(@CurrentUser() user: { id: number }, @Body() dto: CreateProjectDto) {
     return this.service.create(user.id, dto);
   }
+  
   @UseGuards(JwtGuard)
   @Get()
   list(@CurrentUser() user: { id: number }) {
