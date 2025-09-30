@@ -10,9 +10,12 @@ import { UmlRelationsModule } from './uml-relations/uml-relations.module';
 import { ValidationModule } from './validation/validation.module';
 import { AuthModule } from './auth/auth.module';
 import { ExportModule } from './export/export.module';
+import { CollabModule } from './collab/collab.module';
+import { RealtimeModule } from './collab/realtime.module';
+
 
 @Module({
-  imports: [PrismaModule, ProjectsModule, DiagramsModule, UmlClassesModule, UmlRelationsModule, ValidationModule, AuthModule, ExportModule],
+  imports: [PrismaModule, ProjectsModule, DiagramsModule, UmlClassesModule, UmlRelationsModule, ValidationModule, AuthModule, ExportModule, CollabModule, RealtimeModule],
   controllers: [AppController],
   providers: [AppService, PrismaService],
 })

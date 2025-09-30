@@ -1,4 +1,16 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateUmlRelationDto } from './create-uml-relation.dto';
+import { RelationType } from '@prisma/client';
 
-export class UpdateUmlRelationDto extends PartialType(CreateUmlRelationDto) {}
+export class UpdateUmlRelationDto {
+  kind?: RelationType;
+  sourceClassId?: number | null;
+  targetClassId?: number | null;
+  sourceMult?: string;
+  targetMult?: string;
+  sourceRole?: string | null;
+  targetRole?: string | null;
+  navigableAToB?: boolean;
+  navigableBToA?: boolean;
+
+  // ⬇️ NUEVO (opcional)
+  associationClassId?: number | null;
+}

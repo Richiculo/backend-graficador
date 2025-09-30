@@ -17,7 +17,7 @@ enum AccessModifier {
   PUBLIC
   PRIVATE
   PROTECTED
-  PACKAGE        // si te diera problemas, usa PACKAGE_PRIVATE
+  PACKAGE // si te diera problemas, usa PACKAGE_PRIVATE
 }
 
 enum RelationType {
@@ -26,6 +26,20 @@ enum RelationType {
   COMPOSITION
   INHERITANCE
   IMPLEMENTATION
+}
+
+enum DiagramRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
 }
 
 model User {
@@ -37,7 +51,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects  Proyect[]
+  projects Proyect[]
+
+  diagramMemberships DiagramMember[]
+
+  sentInvites   DiagramInvite[] @relation("UserInvites")
 }
 
 model Proyect {
@@ -51,6 +69,7 @@ model Proyect {
   userId   Int
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   diagrams Diagram[]
+
   @@map("project")
 }
 
@@ -63,81 +82,149 @@ model Diagram {
   updatedAt   DateTime @updatedAt
 
   projectId Int
-  project   Proyect   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Proyect @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   classes   UmlClass[]
   relations UmlRelation[]
+  changes     DiagramChange[]
+  snapshots   DiagramSnapshot[]
+
+  diagramMembers DiagramMember[]
+
+  invites       DiagramInvite[]
 }
 
 model UmlClass {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(uuid())
+  id         Int     @id @default(autoincrement())
+  uuid       String  @unique @default(uuid())
   name       String
   stereotype String?
-  isAbstract Boolean  @default(false)
+  isAbstract Boolean @default(false)
   x          Int
   y          Int
 
   outgoingRelations UmlRelation[] @relation("UmlRelation_source")
   incomingRelations UmlRelation[] @relation("UmlRelation_target")
 
-  diagramId Int
-  diagram   Diagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  diagramId              Int
+  diagram                Diagram       @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  associationOfRelations UmlRelation[] @relation("associationClass")
 
   attributes UmlAttribute[]
   methods    UmlMethod[]
 }
 
 model UmlAttribute {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
+  id           Int            @id @default(autoincrement())
+  uuid         String         @unique @default(uuid())
   name         String
   type         String
   order        Int
   defaultValue String?
-  isReadOnly   Boolean  @default(false)
-  isStatic     Boolean  @default(false)
+  isReadOnly   Boolean        @default(false)
+  isStatic     Boolean        @default(false)
   visibility   AccessModifier
 
   umlClassId Int
-  umlClass   UmlClass   @relation(fields: [umlClassId], references: [id], onDelete: Cascade)
+  umlClass   UmlClass @relation(fields: [umlClassId], references: [id], onDelete: Cascade)
 
   @@unique([umlClassId, order])
 }
 
 model UmlMethod {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(uuid())
+  id         Int            @id @default(autoincrement())
+  uuid       String         @unique @default(uuid())
   name       String
   order      Int
-  isStatic   Boolean  @default(false)
-  isAbstract Boolean  @default(false)
+  isStatic   Boolean        @default(false)
+  isAbstract Boolean        @default(false)
   returnType String
   visibility AccessModifier
 
   umlClassId Int
-  umlClass   UmlClass  @relation(fields: [umlClassId], references: [id], onDelete: Cascade)
+  umlClass   UmlClass @relation(fields: [umlClassId], references: [id], onDelete: Cascade)
 
   @@unique([umlClassId, order])
 }
 
 model UmlRelation {
-  id             Int      @id @default(autoincrement())
-  uuid           String   @unique @default(uuid())
-  kind           RelationType
-  sourceMult     String
-  targetMult     String
-  sourceRole     String?
-  targetRole     String?
-  navigableAToB  Boolean  @default(false)
-  navigableBToA  Boolean  @default(false)
+  id            Int          @id @default(autoincrement())
+  uuid          String       @unique @default(uuid())
+  kind          RelationType
+  sourceMult    String
+  targetMult    String
+  sourceRole    String?
+  targetRole    String?
+  navigableAToB Boolean      @default(false)
+  navigableBToA Boolean      @default(false)
 
-  sourceClassId  Int?
-  targetClassId  Int?
-  sourceClass    UmlClass? @relation("UmlRelation_source", fields: [sourceClassId], references: [id], onDelete: SetNull)
-  targetClass    UmlClass? @relation("UmlRelation_target", fields: [targetClassId], references: [id], onDelete: SetNull)
+  sourceClassId      Int?
+  targetClassId      Int?
+  sourceClass        UmlClass? @relation("UmlRelation_source", fields: [sourceClassId], references: [id], onDelete: SetNull)
+  targetClass        UmlClass? @relation("UmlRelation_target", fields: [targetClassId], references: [id], onDelete: SetNull)
+  associationClassId Int?
+  associationClass   UmlClass? @relation("associationClass", fields: [associationClassId], references: [id], onDelete: SetNull)
+  diagramId          Int
+  diagram            Diagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+}
+model DiagramChange {
+  id         Int       @id @default(autoincrement())
+  diagramId  Int
+  seq        Int       // orden total (el que ya generas)
+  type       String    // ej: "node:create", "edge:update", etc.
+  payload    Json
+  authorId   Int
+  createdAt  DateTime  @default(now())
 
-  diagramId Int
-  diagram   Diagram  @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  diagram    Diagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+
+  @@unique([diagramId, seq])
+  @@index([diagramId, createdAt])
 }
 
+model DiagramSnapshot {
+  id         Int       @id @default(autoincrement())
+  diagramId  Int
+  version    Int       // puedes usar el último seq en el momento de sacar el snapshot
+  payload    Json      // estado completo del diagrama (clases, relaciones, etc.)
+  authorId   Int?
+  createdAt  DateTime  @default(now())
+
+  diagram    Diagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+
+  @@unique([diagramId, version])
+  @@index([diagramId, createdAt])
+}
+
+model DiagramMember {
+  id         Int         @id @default(autoincrement())
+  diagramId  Int
+  userId     Int
+  role       DiagramRole @default(EDITOR)
+  createdAt  DateTime    @default(now())
+
+  diagram    Diagram     @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([diagramId, userId])
+  @@index([diagramId, role])
+}
+
+model DiagramInvite {
+  id            Int          @id @default(autoincrement())
+  diagramId     Int
+  inviterId     Int
+  inviteeEmail  String
+  role          DiagramRole  @default(EDITOR)
+  token         String       @unique
+  status        InviteStatus @default(PENDING)
+  expiresAt     DateTime
+  createdAt     DateTime     @default(now())
+  acceptedAt    DateTime?
+
+  diagram       Diagram      @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  inviter       User         @relation("UserInvites", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([diagramId, status])
+  @@index([inviteeEmail, status])
+}

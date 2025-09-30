@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -26,6 +26,13 @@ export class ProjectsService {
       include: {diagrams: true},
     });
   }
+
+    private async findOwnedOrThrow(projectId: number, userId: number) {
+    const p = await this.prisma.proyect.findUnique({ where: { id: projectId } });
+    if (!p) throw new NotFoundException('Project not found');
+    if (p.userId !== userId) throw new ForbiddenException('Not your project');
+    return p;
+    }
 
   async findOne(id: number) {
     const p = await this.prisma.proyect.findUnique({
