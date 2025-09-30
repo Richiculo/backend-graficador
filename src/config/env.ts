@@ -7,5 +7,5 @@ export const env = {
     .map(s => s.trim())
     .filter(Boolean),
   JWT_SECRET: process.env.JWT_SECRET ?? 'dev-secret',
-  REDIS_URL: process.env.REDIS_URL ?? 'redis://localhost:6379',
+  REDIS_URL: process.env.REDIS_URL ?? (process.env.NODE_ENV === 'production' ? '' : 'redis://localhost:6379'),
 };

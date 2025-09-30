@@ -9,13 +9,28 @@ export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter> | null = null;
 
   async connectToRedis(): Promise<void> {
-    const pubClient = createClient({ url: env.REDIS_URL });
-    const subClient = pubClient.duplicate();
+    try {
+      // Si no hay REDIS_URL configurado, no intentar conectar
+      if (!env.REDIS_URL) {
+        console.log('⚠️ No REDIS_URL configured, WebSocket will work without clustering');
+        this.adapterConstructor = null;
+        return;
+      }
 
-    await pubClient.connect();
-    await subClient.connect();
+      const pubClient = createClient({ url: env.REDIS_URL });
+      const subClient = pubClient.duplicate();
 
-    this.adapterConstructor = createAdapter(pubClient, subClient);
+      await pubClient.connect();
+      await subClient.connect();
+
+      this.adapterConstructor = createAdapter(pubClient, subClient);
+      console.log('✅ Redis connected successfully for WebSocket adapter');
+    } catch (error) {
+      console.warn('⚠️ Redis connection failed, WebSocket will work without clustering:', error.message);
+      // En caso de no poder conectar a Redis, no configuramos el adapter
+      // Esto permite que Socket.IO funcione sin Redis, pero sin clustering
+      this.adapterConstructor = null;
+    }
   }
 
   createIOServer(port: number, options?: ServerOptions) {
@@ -32,10 +47,13 @@ export class RedisIoAdapter extends IoAdapter {
       transports: ['websocket'], // puro WS para editor
     });
 
-    if (!this.adapterConstructor) {
-      throw new Error('Redis adapter is not initialized. Call connectToRedis() first.');
+    // Solo aplicar el adapter de Redis si está disponible
+    if (this.adapterConstructor) {
+      server.adapter(this.adapterConstructor);
+      console.log('✅ Redis adapter applied to Socket.IO server');
+    } else {
+      console.log('⚠️ Socket.IO running without Redis adapter (no clustering)');
     }
-    server.adapter(this.adapterConstructor);
 
     return server;
   }
