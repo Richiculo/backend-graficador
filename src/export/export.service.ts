@@ -585,12 +585,13 @@ private entityJava(
       if (r.target?.name !== c.name && r.target) ends.add(r.target.name);
     }
     const names = Array.from(ends).slice(0, 2);
-    relCode += names.map((n) => {
+    relCode += names.map((n, index) => {
       const field = this.lowerFirst(n);
+      const referenceName = `${c.name.toLowerCase()}-${field}-${index}`;
       relFields.push({
         name: field,
         type: n,
-        decl: `  @com.fasterxml.jackson.annotation.JsonBackReference
+        decl: `  @com.fasterxml.jackson.annotation.JsonBackReference("${referenceName}")
   @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
   @JoinColumn(name = "${n.toLowerCase()}_id")
   private ${n} ${field};`,
@@ -610,20 +611,25 @@ private entityJava(
 
       if (iAmMany && !otherIsMany) {
         const field = this.lowerFirst(other.name);
-        const decl = `  @com.fasterxml.jackson.annotation.JsonBackReference
+        // Crear un nombre de referencia consistente basado en las clases involucradas
+        const referenceName = `${other.name.toLowerCase()}-${this.plural(c.name.toLowerCase())}`;
+        const decl = `  @com.fasterxml.jackson.annotation.JsonBackReference("${referenceName}")
   @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
   @JoinColumn(name = "${field}_id")
   private ${other.name} ${field};`;
         relFields.push({ name: field, type: other.name, decl });
       } else if (!iAmMany && otherIsMany) {
         const field = this.plural(this.lowerFirst(other.name));
-        const decl = `  @com.fasterxml.jackson.annotation.JsonManagedReference
+        // Crear un nombre de referencia consistente basado en las clases involucradas
+        const referenceName = `${c.name.toLowerCase()}-${this.plural(other.name.toLowerCase())}`;
+        const decl = `  @com.fasterxml.jackson.annotation.JsonManagedReference("${referenceName}")
   @OneToMany(mappedBy = "${this.lowerFirst(c.name)}"${compo ? ', cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true' : ''})
   private java.util.List<${other.name}> ${field} = new java.util.ArrayList<>();`;
         relFields.push({ name: field, type: `java.util.List<${other.name}>`, decl });
       } else if (iAmMany && otherIsMany) {
         const field = this.plural(this.lowerFirst(other.name));
-        const decl = `  @ManyToMany
+        const decl = `  @com.fasterxml.jackson.annotation.JsonIgnore
+  @ManyToMany
   @JoinTable(
     name = "${c.name.toLowerCase()}_${other.name.toLowerCase()}",
     joinColumns = @JoinColumn(name = "${this.lowerFirst(c.name)}_id"),
