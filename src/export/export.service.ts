@@ -519,6 +519,7 @@ private pomXml(groupId: string, artifactId: string) {
         <version>3.11.0</version>
         <configuration>
           <release>\${java.version}</release>
+          <parameters>true</parameters>
         </configuration>
       </plugin>
       <plugin>
@@ -532,7 +533,7 @@ private pomXml(groupId: string, artifactId: string) {
 }
 
 private applicationPropsH2() {
-  return `spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+  return `spring.datasource.url=jdbc:h2:file:./data/testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
 spring.datasource.username=sa
 spring.datasource.password=
 spring.jpa.hibernate.ddl-auto=update
